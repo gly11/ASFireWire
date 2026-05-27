@@ -5,10 +5,16 @@
 
 namespace ASFW::Driver {
 
-// Host cycle-master bring-up configuration. Linux firewire_ohci and Apple
-// IOFireWireController both make the local PHY contender-capable during init,
-// while root delegation remains policy-controlled by BusManager.
+// Host cycle-master bring-up configuration:
+// - enable local contender / cycle-master eligibility (matches Linux/Apple default)
+// - delegation controlled by experimentalHostCycleMasterBringup property
+//
+// Per Linux firewire_ohci: PHY contender bit is always set during init.
+// Per Apple IOFireWireController: contender is set for most configurations.
+// The host MUST be contender-capable for proper bus management (IRM election,
+// cycle-start generation), especially in 2-node topologies with SBP-2 devices.
 inline void ApplyBringupOverrides(ControllerConfig& config, BusManager* busManager) {
+    // Always enable contender; this matches Linux/Apple behavior.
     config.allowCycleMasterEligibility = true;
 
     if (busManager != nullptr) {
