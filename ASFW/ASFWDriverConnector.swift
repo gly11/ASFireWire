@@ -54,6 +54,21 @@ final class ASFWDriverConnector: ObservableObject {
         case setIsochTxVerifier = 41
         case asyncBlockRead = 44
         case asyncBlockWrite = 45
+        // SBP2 address space management
+        case allocateAddressRange = 46
+        case deallocateAddressRange = 47
+        case readIncomingData = 48
+        case writeLocalData = 49
+        // SBP-2 session management
+        case createSBP2Session = 53
+        case startSBP2Login = 54
+        case getSBP2SessionState = 55
+        case submitSBP2Inquiry = 56
+        case getSBP2InquiryResult = 57
+        case releaseSBP2Session = 58
+        case submitSBP2Command = 59
+        case getSBP2CommandResult = 60
+        case submitSBP2TaskManagement = 61
     }
 
     // MARK: - Re-exported Models
@@ -163,7 +178,7 @@ final class ASFWDriverConnector: ObservableObject {
         }
     }
 
-    
+
     func interpretIOReturn(_ kr: kern_return_t) -> String {
         let KERN_SUCCESS: kern_return_t = 0
         let KERN_PROTECTION_FAILURE: kern_return_t = -308
@@ -210,4 +225,3 @@ final class ASFWDriverConnector: ObservableObject {
     }
 
 }
-    
