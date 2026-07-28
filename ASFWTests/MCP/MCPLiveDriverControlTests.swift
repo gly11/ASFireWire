@@ -118,6 +118,38 @@ struct MCPLiveDriverControlTests {
         #expect(report.tree.map(\.key) == ["VENDOR", "MODEL"])
     }
 
+    @Test func sbp2DiscoveryPreservesUnitDirectoryMetadata() async {
+        let backend = FakeLiveDriverBackend()
+        backend.devices = [
+            FWDeviceInfo(
+                id: 0x00AA_BBCC_DDEE_FF00,
+                guid: 0x00AA_BBCC_DDEE_FF00,
+                vendorId: 0x00130E,
+                modelId: 0x000002,
+                vendorName: "Storage Vendor",
+                modelName: "Storage Model",
+                nodeId: 1,
+                generation: 17,
+                state: .ready,
+                units: [sbp2Unit()],
+                deviceKind: 4
+            )
+        ]
+
+        let units = await LiveASFWDriverControl(backend: backend).listSBP2Units()
+
+        #expect(units.count == 1)
+        #expect(units.first?.guid == 0x00AA_BBCC_DDEE_FF00)
+        #expect(units.first?.nodeId == 1)
+        #expect(units.first?.generation == 17)
+        #expect(units.first?.specifierId == 0x00609E)
+        #expect(units.first?.softwareVersion == 0x010483)
+        #expect(units.first?.managementAgentOffset == 0x100)
+        #expect(units.first?.lun == 0)
+        #expect(units.first?.vendorName == "Mock Storage")
+        #expect(units.first?.productName == "Disk")
+    }
+
     @Test func avcInspectionMapsDriverEvidenceWithoutFcpTraffic() async throws {
         let backend = FakeLiveDriverBackend()
         backend.avcUnits = [
@@ -328,7 +360,9 @@ struct MCPLiveDriverControlTests {
             state: .ready,
             romOffset: 0,
             managementAgentOffset: 0x100,
-            lun: 0,
+            // Discovery retains the full Config-ROM immediate value; the
+            // logical unit number is encoded in its low 16 bits.
+            lun: 0x0006_0000,
             unitCharacteristics: nil,
             fastStart: nil,
             vendorName: "Mock Storage",

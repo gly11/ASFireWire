@@ -33,6 +33,14 @@ struct MCPSbp2ToolsTests {
         return await Set(core.listTools().map(\.name))
     }
 
+    private func object(_ result: ASFWMCPToolCallResult) -> [String: ASFWMCPValue] {
+        guard case .object(let object) = result.data else {
+            Issue.record("Expected tool result data to be an object.")
+            return [:]
+        }
+        return object
+    }
+
     private func decide(_ cfg: ASFWMCPRuntimeConfiguration, _ req: ASFWMCPPolicyRequest) -> ASFWMCPPolicyDecision {
         ASFWMCPWritePolicyEngine(configuration: cfg).evaluate(req)
     }
@@ -68,6 +76,67 @@ struct MCPSbp2ToolsTests {
         #expect(active.state == .active)
         #expect(active.loginId == 7)
         #expect(ASFWMCPSbp2SessionStatus(nodeId: 2, state: .absent).loginId == nil)
+    }
+
+    @Test func listUnitsReturnsDiscoveredUnitDirectoryEvidenceWithoutWrites() async {
+        let driver = MockASFWDriverControl(nodes: [MockASFWDriverControl.sbp2Node])
+        let core = ASFWMCPCore(configuration: .readOnlyDeveloper, driver: driver)
+
+        let result = await core.callTool(name: "asfw_sbp2_list_units")
+        let data = object(result)
+
+        #expect(result.ok)
+        #expect(data["kind"] == .string("sbp2UnitInventory"))
+        guard case .array(let units)? = data["units"],
+              case .object(let unit)? = units.first else {
+            Issue.record("Expected one decoded SBP-2 unit.")
+            return
+        }
+        #expect(unit["guid"] == .string("0x0022334455667788"))
+        #expect(unit["nodeId"] == .int(2))
+        #expect(unit["specifierId"] == .string("0x00609E"))
+        #expect(unit["softwareVersion"] == .string("0x010483"))
+        #expect(unit["managementAgentOffset"] == .string("0x00000100"))
+        #expect(unit["commandSet"] == .string("SCSI"))
+        #expect(await driver.unexpectedWriteAttemptCount() == 0)
+    }
+
+    @Test func inspectUnitRequiresAUnitInTheCurrentDiscoverySnapshot() async {
+        let driver = MockASFWDriverControl(nodes: [MockASFWDriverControl.sbp2Node])
+        let core = ASFWMCPCore(configuration: .readOnlyDeveloper, driver: driver)
+
+        let found = await core.callTool(
+            name: "asfw_sbp2_inspect_unit",
+            arguments: .object([
+                "targetGuid": .uint64(0x0022_3344_5566_7788),
+                "romOffset": .int(0),
+            ])
+        )
+        let missing = await core.callTool(
+            name: "asfw_sbp2_inspect_unit",
+            arguments: .object([
+                "targetGuid": .uint64(0xDEAD_BEEF_0000_0001),
+                "romOffset": .int(0),
+            ])
+        )
+
+        #expect(found.ok)
+        #expect(object(found)["kind"] == .string("sbp2UnitInspection"))
+        #expect(missing.ok == false)
+        #expect(missing.errors.first?.code == .capabilityUnavailable)
+        #expect(await driver.unexpectedWriteAttemptCount() == 0)
+    }
+
+    @Test func sessionStatusReportsMissingCrossOwnerSnapshotCapability() async {
+        let driver = MockASFWDriverControl(nodes: [MockASFWDriverControl.sbp2Node])
+        let core = ASFWMCPCore(configuration: .readOnlyDeveloper, driver: driver)
+
+        let result = await core.callTool(name: "asfw_sbp2_get_session_status")
+
+        #expect(result.ok == false)
+        #expect(result.errors.first?.code == .capabilityUnavailable)
+        #expect(result.errors.first?.reason.contains("cross-owner session snapshot") == true)
+        #expect(await driver.unexpectedWriteAttemptCount() == 0)
     }
 
     @Test func orbValidationRejectsEmptyUnalignedAndOversize() {

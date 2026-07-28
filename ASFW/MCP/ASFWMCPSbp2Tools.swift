@@ -18,6 +18,46 @@ extension ASFWMCPToolCatalog {
     ]
 }
 
+/// Generation-bound SBP-2 unit-directory evidence exposed by discovery.
+struct ASFWMCPSBP2UnitSummary: Equatable {
+    let guid: UInt64
+    let nodeId: UInt32
+    let generation: UInt32
+    let specifierId: UInt32
+    let softwareVersion: UInt32
+    let state: String
+    let romOffset: UInt32
+    let managementAgentOffset: UInt32?
+    let lun: UInt32?
+    let unitCharacteristics: UInt32?
+    let fastStart: UInt32?
+    let vendorName: String?
+    let productName: String?
+
+    var mcpValue: ASFWMCPValue {
+        .object([
+            "guid": .string(String(format: "0x%016llX", guid)),
+            "nodeId": .int(Int(nodeId)),
+            "generation": .int(Int(generation)),
+            "specifierId": .string(String(format: "0x%06X", specifierId)),
+            "softwareVersion": .string(String(format: "0x%06X", softwareVersion)),
+            "state": .string(state),
+            "romOffset": .string(String(format: "0x%08X", romOffset)),
+            "managementAgentOffset": managementAgentOffset.map {
+                .string(String(format: "0x%08X", $0))
+            } ?? .null,
+            "lun": lun.map { .int(Int($0)) } ?? .null,
+            "unitCharacteristics": unitCharacteristics.map {
+                .string(String(format: "0x%08X", $0))
+            } ?? .null,
+            "fastStart": fastStart.map { .string(String(format: "0x%08X", $0)) } ?? .null,
+            "vendorName": vendorName.map(ASFWMCPValue.string) ?? .null,
+            "productName": productName.map(ASFWMCPValue.string) ?? .null,
+            "commandSet": .string("SCSI"),
+        ])
+    }
+}
+
 /// Distinguishes the inspection states an SBP-2 query can report.
 enum ASFWMCPSbp2SessionState: String, Equatable, CaseIterable {
     /// No SBP-2 device present at the queried node.

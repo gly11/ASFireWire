@@ -123,8 +123,15 @@ extension ASFWMCPCore {
             return await dispatchCmpWritePcr(name, decoder: decoder)
         case "asfw_cmp_establish_connection", "asfw_cmp_break_connection":
             return await dispatchCmpConnection(name, decoder: decoder, establish: name == "asfw_cmp_establish_connection")
-        case "asfw_sbp2_list_units", "asfw_sbp2_inspect_unit", "asfw_sbp2_get_session_status":
-            return notImplementedToolResult(name, reason: "SBP-2 inspection dispatch needs protocol adapter support from FW-94.")
+        case "asfw_sbp2_list_units":
+            return await sbp2UnitInventoryResult(toolName: name)
+        case "asfw_sbp2_inspect_unit":
+            return await sbp2InspectUnitResult(toolName: name, decoder: decoder)
+        case "asfw_sbp2_get_session_status":
+            return notImplementedToolResult(
+                name,
+                reason: "The live driver exposes SBP-2 session state only to the user client that owns a session handle; a read-only cross-owner session snapshot is not available."
+            )
         case "asfw_sbp2_login_dev":
             return await dispatchSbp2Login(name, decoder: decoder)
         case "asfw_sbp2_submit_orb_dev":
@@ -1740,6 +1747,45 @@ private extension ASFWMCPCore {
                 "units": .array(units.map(\.mcpValue)),
             ])
         )
+    }
+
+    func sbp2UnitInventoryResult(toolName: String) async -> ASFWMCPToolCallResult {
+        let units = await driver.listSBP2Units()
+        return .success(
+            toolName: toolName,
+            data: .object([
+                "kind": .string("sbp2UnitInventory"),
+                "units": .array(units.map(\.mcpValue)),
+            ])
+        )
+    }
+
+    func sbp2InspectUnitResult(
+        toolName: String,
+        decoder: ASFWMCPToolArgumentDecoder
+    ) async -> ASFWMCPToolCallResult {
+        do {
+            let guid = try decoder.uint64("targetGuid")
+            let romOffset = try decoder.uint32("romOffset")
+            guard let unit = await driver.listSBP2Units().first(where: {
+                $0.guid == guid && $0.romOffset == romOffset
+            }) else {
+                return .failure(
+                    toolName: toolName,
+                    code: .capabilityUnavailable,
+                    reason: "The requested SBP-2 unit is not present in the current generation-bound discovery snapshot."
+                )
+            }
+            return .success(
+                toolName: toolName,
+                data: .object([
+                    "kind": .string("sbp2UnitInspection"),
+                    "unit": unit.mcpValue,
+                ])
+            )
+        } catch {
+            return malformedToolResult(toolName, reason: error.localizedDescription)
+        }
     }
 
     func avcSubunitCapabilitiesResult(

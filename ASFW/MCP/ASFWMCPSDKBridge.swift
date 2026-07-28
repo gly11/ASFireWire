@@ -150,6 +150,27 @@ extension ASFWMCPToolDefinition {
                 "type": .string("object"),
                 "additionalProperties": .bool(false)
             ])
+        case "asfw_sbp2_list_units", "asfw_sbp2_get_session_status":
+            return .object([
+                "type": .string("object"),
+                "additionalProperties": .bool(false)
+            ])
+        case "asfw_sbp2_inspect_unit":
+            return .object([
+                "type": .string("object"),
+                "properties": .object([
+                    "targetGuid": .object([
+                        "type": .array([.string("integer"), .string("string")]),
+                        "description": .string("Target GUID as an integer or hexadecimal string.")
+                    ]),
+                    "romOffset": .object([
+                        "type": .array([.string("integer"), .string("string")]),
+                        "description": .string("Unit-directory ROM offset as an integer or hexadecimal string.")
+                    ]),
+                ]),
+                "required": .array([.string("targetGuid"), .string("romOffset")]),
+                "additionalProperties": .bool(false)
+            ])
         default:
             return .object([
                 "type": .string("object"),

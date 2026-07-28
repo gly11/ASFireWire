@@ -414,6 +414,31 @@ final class LiveASFWDriverControl: ASFWDriverControlling {
         }
     }
 
+    func listSBP2Units() async -> [ASFWMCPSBP2UnitSummary] {
+        (backend.mcpDiscoveredDevices() ?? []).flatMap { device in
+            device.sbp2Units.map { unit in
+                ASFWMCPSBP2UnitSummary(
+                    guid: device.guid,
+                    nodeId: UInt32(device.nodeId),
+                    generation: device.generation,
+                    specifierId: unit.specId,
+                    softwareVersion: unit.swVersion,
+                    state: unit.stateString,
+                    romOffset: unit.romOffset,
+                    managementAgentOffset: unit.managementAgentOffset,
+                    // Discovery retains the full Config-ROM immediate value.
+                    // SessionRegistry decodes the SBP-2 LUN from its low 16
+                    // bits; zero is also the valid/default logical unit.
+                    lun: unit.lun.map { $0 & 0xFFFF } ?? 0,
+                    unitCharacteristics: unit.unitCharacteristics,
+                    fastStart: unit.fastStart,
+                    vendorName: unit.vendorName ?? (device.vendorName.isEmpty ? nil : device.vendorName),
+                    productName: unit.productName ?? (device.modelName.isEmpty ? nil : device.modelName)
+                )
+            }
+        }
+    }
+
     func avcSubunitCapabilities(
         guid: UInt64,
         type: UInt8,

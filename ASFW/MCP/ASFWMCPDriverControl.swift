@@ -9,6 +9,7 @@ protocol ASFWDriverControlling {
     func recentFcpRecords(limit: Int) async -> [ASFWMCPFcpRecord]
     func listNodes() async -> [ASFWMCPNodeSummary]
     func listAVCUnits() async -> [ASFWMCPAVCUnitSummary]
+    func listSBP2Units() async -> [ASFWMCPSBP2UnitSummary]
     func avcSubunitCapabilities(guid: UInt64, type: UInt8, id: UInt8) async -> ASFWMCPAVCSubunitCapabilities?
     func listRecentTransactions(limit: Int) async -> [ASFWMCPTransactionEvent]
     func executeReadQuadlet(_ request: ASFWMCPReadQuadletRequest) async -> ASFWMCPTransactionResult
@@ -228,6 +229,31 @@ actor MockASFWDriverControl: ASFWDriverControlling {
                 isoInputPlugCount: 1, isoOutputPlugCount: 1,
                 externalInputPlugCount: 1, externalOutputPlugCount: 1,
                 subunits: [.init(type: 0x0C, id: 0, sourcePlugCount: 1, destinationPlugCount: 1)]
+            )
+        }
+    }
+
+    func listSBP2Units() async -> [ASFWMCPSBP2UnitSummary] {
+        nodes.compactMap { node in
+            guard node.protocolHints.contains("sbp2"),
+                  let guidText = node.guid,
+                  let guid = UInt64(guidText.dropFirst(2), radix: 16) else {
+                return nil
+            }
+            return ASFWMCPSBP2UnitSummary(
+                guid: guid,
+                nodeId: node.nodeId,
+                generation: generation,
+                specifierId: 0x00609E,
+                softwareVersion: 0x010483,
+                state: "Ready",
+                romOffset: 0,
+                managementAgentOffset: 0x100,
+                lun: 0,
+                unitCharacteristics: nil,
+                fastStart: nil,
+                vendorName: node.vendorName,
+                productName: node.modelName
             )
         }
     }

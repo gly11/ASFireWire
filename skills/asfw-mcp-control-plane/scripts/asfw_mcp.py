@@ -45,6 +45,8 @@ SAFE_TOOL_NAMES = {
     "asfw_log_query",
     "asfw_log_stats",
     "asfw_phase88_get_clock",
+    "asfw_sbp2_inspect_unit",
+    "asfw_sbp2_list_units",
 }
 
 
